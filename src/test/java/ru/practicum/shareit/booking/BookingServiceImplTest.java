@@ -11,8 +11,10 @@ import ru.practicum.shareit.booking.dto.NewBookingDto;
 import ru.practicum.shareit.exception.ForbiddenException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
+import ru.practicum.shareit.item.ItemRepository;
 import ru.practicum.shareit.item.ItemService;
 import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.user.UserRepository;
 import ru.practicum.shareit.user.UserService;
 import ru.practicum.shareit.user.dto.UserDto;
 
@@ -28,6 +30,9 @@ class BookingServiceImplTest {
     private final BookingService bookingService;
     private final ItemService itemService;
     private final UserService userService;
+    private final BookingRepository bookingRepository;
+    private final ItemRepository itemRepository;
+    private final UserRepository userRepository;
 
     private Long ownerId;
     private Long bookerId;
@@ -68,6 +73,12 @@ class BookingServiceImplTest {
         LocalDateTime moment = now.plusDays(1);
 
         assertThatThrownBy(() -> bookingService.create(bookerId, booking(moment, moment)))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void create_startInPast_shouldThrowValidation() {
+        assertThatThrownBy(() -> bookingService.create(bookerId, booking(now.minusDays(1), now.plusDays(1))))
                 .isInstanceOf(ValidationException.class);
     }
 
@@ -214,7 +225,15 @@ class BookingServiceImplTest {
         return new NewBookingDto(itemId, start, end);
     }
 
+    // Сохраняем напрямую через репозиторий: сервис не даст создать бронирование в прошлом
     private Long createBooking(LocalDateTime start, LocalDateTime end) {
-        return bookingService.create(bookerId, booking(start, end)).getId();
+        Booking booking = Booking.builder()
+                .start(start)
+                .end(end)
+                .item(itemRepository.findById(itemId).orElseThrow())
+                .booker(userRepository.findById(bookerId).orElseThrow())
+                .status(BookingStatus.WAITING)
+                .build();
+        return bookingRepository.save(booking).getId();
     }
 }

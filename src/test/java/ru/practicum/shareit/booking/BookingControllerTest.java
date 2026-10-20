@@ -73,8 +73,8 @@ class BookingControllerTest {
     }
 
     @Test
-    void create_withStartInPast_shouldReturn400() throws Exception {
-        NewBookingDto dto = new NewBookingDto(10L, LocalDateTime.now().minusDays(1), end);
+    void create_withEndInPast_shouldReturn400() throws Exception {
+        NewBookingDto dto = new NewBookingDto(10L, LocalDateTime.now().minusDays(2), LocalDateTime.now().minusDays(1));
 
         mvc.perform(post("/bookings")
                         .header(RequestHeaders.USER_ID, 2L)

@@ -6,14 +6,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
-import ru.practicum.shareit.booking.BookingService;
-import ru.practicum.shareit.booking.dto.BookingDto;
-import ru.practicum.shareit.booking.dto.NewBookingDto;
+import ru.practicum.shareit.booking.Booking;
+import ru.practicum.shareit.booking.BookingRepository;
+import ru.practicum.shareit.booking.BookingStatus;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.dto.CommentDto;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.dto.ItemWithBookingsDto;
+import ru.practicum.shareit.user.UserRepository;
 import ru.practicum.shareit.user.UserService;
 import ru.practicum.shareit.user.dto.UserDto;
 
@@ -29,7 +30,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ItemServiceImplTest {
     private final ItemService itemService;
     private final UserService userService;
-    private final BookingService bookingService;
+    private final BookingRepository bookingRepository;
+    private final ItemRepository itemRepository;
+    private final UserRepository userRepository;
 
     private Long ownerId;
     private Long bookerId;
@@ -100,8 +103,8 @@ class ItemServiceImplTest {
     void getById_byOwner_shouldContainLastAndNextBookings() {
         Long itemId = itemService.create(ownerId, item("Дрель", "Ударная дрель", true)).getId();
         LocalDateTime now = LocalDateTime.now();
-        BookingDto past = approvedBooking(itemId, now.minusDays(3), now.minusDays(2));
-        BookingDto future = approvedBooking(itemId, now.plusDays(2), now.plusDays(3));
+        Booking past = approvedBooking(itemId, now.minusDays(3), now.minusDays(2));
+        Booking future = approvedBooking(itemId, now.plusDays(2), now.plusDays(3));
 
         ItemWithBookingsDto dto = itemService.getById(ownerId, itemId);
 
@@ -173,8 +176,15 @@ class ItemServiceImplTest {
         return ItemDto.builder().name(name).description(description).available(available).build();
     }
 
-    private BookingDto approvedBooking(Long itemId, LocalDateTime start, LocalDateTime end) {
-        BookingDto booking = bookingService.create(bookerId, new NewBookingDto(itemId, start, end));
-        return bookingService.approve(ownerId, booking.getId(), true);
+    // Сохраняем напрямую через репозиторий: сервис не даст создать бронирование в прошлом
+    private Booking approvedBooking(Long itemId, LocalDateTime start, LocalDateTime end) {
+        Booking booking = Booking.builder()
+                .start(start)
+                .end(end)
+                .item(itemRepository.findById(itemId).orElseThrow())
+                .booker(userRepository.findById(bookerId).orElseThrow())
+                .status(BookingStatus.APPROVED)
+                .build();
+        return bookingRepository.save(booking);
     }
 }

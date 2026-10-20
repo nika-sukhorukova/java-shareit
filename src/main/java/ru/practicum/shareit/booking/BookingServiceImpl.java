@@ -14,8 +14,8 @@ import ru.practicum.shareit.user.User;
 import ru.practicum.shareit.user.UserRepository;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
-
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +36,10 @@ public class BookingServiceImpl implements BookingService {
         }
         if (!dto.getStart().isBefore(dto.getEnd())) {
             throw new ValidationException("Дата начала бронирования должна быть раньше даты окончания");
+        }
+        // Клиент присылает даты с точностью до секунды, поэтому и "сейчас" сравниваем без миллисекунд
+        if (dto.getStart().isBefore(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS))) {
+            throw new ValidationException("Дата начала бронирования не может быть в прошлом");
         }
 
         Booking booking = BookingMapper.toBooking(dto, item, booker);
