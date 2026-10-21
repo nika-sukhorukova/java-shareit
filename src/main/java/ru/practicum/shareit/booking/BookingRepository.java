@@ -4,7 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
@@ -30,11 +29,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByItem_Owner_IdAndStatusOrderByStartDesc(Long ownerId, BookingStatus status);
 
-    Optional<Booking> findFirstByItemIdAndStatusAndStartBeforeOrderByStartDesc(
-            Long itemId, BookingStatus status, LocalDateTime now);
-
-    Optional<Booking> findFirstByItemIdAndStatusAndStartAfterOrderByStartAsc(
-            Long itemId, BookingStatus status, LocalDateTime now);
+    // Бронирования сразу для нескольких вещей: один запрос вместо запроса на каждую вещь
+    List<Booking> findByItemIdInAndStatus(List<Long> itemIds, BookingStatus status);
 
     boolean existsByBookerIdAndItemIdAndStatusAndEndBefore(
             Long bookerId, Long itemId, BookingStatus status, LocalDateTime now);

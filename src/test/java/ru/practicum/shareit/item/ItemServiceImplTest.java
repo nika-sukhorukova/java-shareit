@@ -140,6 +140,34 @@ class ItemServiceImplTest {
     }
 
     @Test
+    void getByOwner_shouldNotMixBookingsAndCommentsOfDifferentItems() {
+        Long drillId = itemService.create(ownerId, item("Дрель", "Ударная дрель", true)).getId();
+        Long sawId = itemService.create(ownerId, item("Пила", "Ручная пила", true)).getId();
+        LocalDateTime now = LocalDateTime.now();
+        Booking drillPast = approvedBooking(drillId, now.minusDays(5), now.minusDays(4));
+        Booking drillLast = approvedBooking(drillId, now.minusDays(3), now.minusDays(2));
+        Booking sawNext = approvedBooking(sawId, now.plusDays(1), now.plusDays(2));
+        approvedBooking(sawId, now.plusDays(5), now.plusDays(6));
+        itemService.addComment(bookerId, drillId, CommentDto.builder().text("Дрель супер").build());
+
+        List<ItemWithBookingsDto> items = itemService.getByOwner(ownerId);
+
+        ItemWithBookingsDto drill = items.stream().filter(i -> i.getId().equals(drillId)).findFirst().orElseThrow();
+        ItemWithBookingsDto saw = items.stream().filter(i -> i.getId().equals(sawId)).findFirst().orElseThrow();
+        assertThat(drill.getLastBooking().getId()).isEqualTo(drillLast.getId()).isNotEqualTo(drillPast.getId());
+        assertThat(drill.getNextBooking()).isNull();
+        assertThat(drill.getComments()).extracting(CommentDto::getText).containsExactly("Дрель супер");
+        assertThat(saw.getLastBooking()).isNull();
+        assertThat(saw.getNextBooking().getId()).isEqualTo(sawNext.getId());
+        assertThat(saw.getComments()).isEmpty();
+    }
+
+    @Test
+    void getByOwner_forUserWithoutItems_shouldReturnEmptyList() {
+        assertThat(itemService.getByOwner(bookerId)).isEmpty();
+    }
+
+    @Test
     void addComment_afterFinishedBooking_shouldBeVisibleInItem() {
         Long itemId = itemService.create(ownerId, item("Дрель", "Ударная дрель", true)).getId();
         LocalDateTime now = LocalDateTime.now();
